@@ -1,0 +1,52 @@
+{
+  "projects": [
+    {
+      "name": "Octocat Docs Refresh",
+      "owner": "Mona Lisa Octocat",
+      "status": "active",
+      "recentActivity": "Merged search filters PR · 2 days ago",
+      "priority": "high",
+      "summary": "Rewriting the getting-started guides so new contributors can ship their first change in under an hour."
+    },
+    {
+      "name": "Hubot Chat Commands",
+      "owner": "Hubot Team",
+      "status": "at-risk",
+      "recentActivity": "Release candidate failed integration tests · 1 day ago",
+      "priority": "high",
+      "summary": "Adding slash commands for deploys and incident updates. Help is welcome on test coverage."
+    },
+    {
+      "name": "Mona's Design System",
+      "owner": "Mona",
+      "status": "blocked",
+      "recentActivity": "Waiting on accessibility review for color tokens · 4 days ago",
+      "priority": "medium",
+      "summary": "Shared components and tokens for every internal dashboard. Blocked until the contrast audit is signed off."
+    },
+    {
+      "name": "Copilot Onboarding Kit",
+      "owner": "Octocat Learning Lab",
+      "status": "active",
+      "recentActivity": "Opened 3 good-first-issue tickets · 5 hours ago",
+      "priority": "medium",
+      "summary": "Short, hands-on exercises that introduce Copilot workflows to new team members."
+    },
+    {
+      "name": "Legacy Wiki Migration",
+      "owner": "Hubot",
+      "status": "paused",
+      "recentActivity": "Paused until next quarter planning · 3 weeks ago",
+      "priority": "low",
+      "summary": "Moving old wiki pages into the docs site. On hold while the docs refresh lands."
+    },
+    {
+      "name": "Pulse Metrics Exporter",
+      "owner": "Mona and the Octocats",
+      "status": "completed",
+      "recentActivity": "Shipped v1.0 and closed the milestone · 1 week ago",
+      "priority": "low",
+      "summary": "Exports weekly project health numbers to CSV. Feature-complete; bug reports still welcome."
+    }
+  ]
+}

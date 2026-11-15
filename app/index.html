@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Pulse</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="dashboard" aria-labelledby="dashboard-title">
+    <header class="dashboard-header">
+      <h1 id="dashboard-title" class="dashboard-title">Project Pulse</h1>
+      <p class="dashboard-subtitle">See which projects are moving, who owns them, and where contributors can help.</p>
+    </header>
+
+    <p id="dashboard-message" class="dashboard-message dashboard-message--loading" role="status" aria-live="polite">Loading projects…</p>
+
+    <noscript>
+      <p class="dashboard-message dashboard-message--error">JavaScript is needed to load project data. Please enable JavaScript and reload the page.</p>
+    </noscript>
+
+    <ul id="project-grid" class="project-grid"></ul>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var DATA_URL = "project-data.json";
+
+      var STATUS_LABELS = {
+        "active": "Active",
+        "at-risk": "At risk",
+        "blocked": "Blocked",
+        "paused": "Paused",
+        "completed": "Completed"
+      };
+
+      var PRIORITY_LABELS = {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      };
+
+      var MESSAGE_MODIFIERS = ["loading", "empty", "error"];
+
+      var messageElement = document.getElementById("dashboard-message");
+      var gridElement = document.getElementById("project-grid");
+
+      // An error whose message is safe and helpful to show on the page.
+      function DashboardError(userMessage, cause) {
+        this.name = "DashboardError";
+        this.message = userMessage;
+        this.cause = cause;
+      }
+      DashboardError.prototype = Object.create(Error.prototype);
+      DashboardError.prototype.constructor = DashboardError;
+
+      function showMessage(modifier, text) {
+        MESSAGE_MODIFIERS.forEach(function (name) {
+          messageElement.classList.remove("dashboard-message--" + name);
+        });
+        messageElement.classList.add("dashboard-message--" + modifier);
+        messageElement.textContent = text;
+        messageElement.hidden = false;
+      }
+
+      function hideMessage() {
+        MESSAGE_MODIFIERS.forEach(function (name) {
+          messageElement.classList.remove("dashboard-message--" + name);
+        });
+        messageElement.textContent = "";
+        messageElement.hidden = true;
+      }
+
+      // Strings are trimmed and finite numbers become text. Anything else
+      // (null, objects, arrays, booleans) counts as missing, so the page never
+      // shows "[object Object]".
+      function toDisplayText(value) {
+        if (typeof value === "string") {
+          return value.trim();
+        }
+        if (typeof value === "number" && isFinite(value)) {
+          return String(value);
+        }
+        return "";
+      }
+
+      function normalizeKey(text) {
+        return text.toLowerCase().replace(/[\s_]+/g, "-");
+      }
+
+      // Returns { modifier, label } for a status or priority value.
+      function normalizeChoice(value, labels) {
+        var text = toDisplayText(value);
+        var key = normalizeKey(text);
+        if (Object.prototype.hasOwnProperty.call(labels, key)) {
+          return { modifier: key, label: labels[key] };
+        }
+        return { modifier: "unknown", label: text || "Unknown" };
+      }
+
+      function normalizeProject(rawProject) {
+        var project = rawProject !== null && typeof rawProject === "object" ? rawProject : {};
+        return {
+          name: toDisplayText(project.name) || "Untitled project",
+          owner: toDisplayText(project.owner) || "Unassigned",
+          status: normalizeChoice(project.status, STATUS_LABELS),
+          recentActivity: toDisplayText(project.recentActivity) || "No recent activity",
+          priority: normalizeChoice(project.priority, PRIORITY_LABELS),
+          summary: toDisplayText(project.summary)
+        };
+      }
+
+      function createElement(tagName, className, text) {
+        var element = document.createElement(tagName);
+        if (className) {
+          element.className = className;
+        }
+        if (text !== undefined) {
+          element.textContent = text;
+        }
+        return element;
+      }
+
+      function createField(termText, detailElement) {
+        var field = createElement("div", "project-card__field");
+        field.appendChild(createElement("dt", "", termText));
+        field.appendChild(detailElement);
+        return field;
+      }
+
+      function createProjectCard(project, index) {
+        var nameId = "project-" + index + "-name";
+
+        var card = createElement("article", "project-card project-card--priority-" + project.priority.modifier);
+        card.setAttribute("data-status", project.status.modifier);
+        card.setAttribute("data-priority", project.priority.modifier);
+        card.setAttribute("aria-labelledby", nameId);
+
+        var header = createElement("header", "project-card__header");
+        var heading = createElement("h2", "project-card__name", project.name);
+        heading.id = nameId;
+        header.appendChild(heading);
+        header.appendChild(createElement("span", "status-badge status-badge--" + project.status.modifier, project.status.label));
+        card.appendChild(header);
+
+        if (project.summary) {
+          card.appendChild(createElement("p", "project-card__summary", project.summary));
+        }
+
+        var meta = createElement("dl", "project-card__meta");
+        meta.appendChild(createField("Owner", createElement("dd", "project-card__owner", project.owner)));
+
+        var priorityDetail = createElement("dd");
+        priorityDetail.appendChild(createElement("span", "priority-badge priority-badge--" + project.priority.modifier, project.priority.label));
+        meta.appendChild(createField("Priority", priorityDetail));
+
+        meta.appendChild(createField("Recent activity", createElement("dd", "project-card__activity", project.recentActivity)));
+        card.appendChild(meta);
+
+        return card;
+      }
+
+      function renderProjects(rawProjects) {
+        gridElement.textContent = "";
+
+        if (rawProjects.length === 0) {
+          showMessage("empty", "No projects to show yet.");
+          return;
+        }
+
+        rawProjects.forEach(function (rawProject, index) {
+          var item = createElement("li", "project-grid__item");
+          item.appendChild(createProjectCard(normalizeProject(rawProject), index));
+          gridElement.appendChild(item);
+        });
+
+        hideMessage();
+      }
+
+      function loadProjects() {
+        showMessage("loading", "Loading projects…");
+
+        return fetch(DATA_URL, { cache: "no-store" })
+          .catch(function (networkError) {
+            throw new DashboardError(
+              "Could not load project data. Open the dashboard with the Run Project Pulse Dashboard launch configuration.",
+              networkError
+            );
+          })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new DashboardError(
+                "Could not load project data (HTTP " + response.status + "). Check that " + DATA_URL + " exists next to index.html."
+              );
+            }
+            return response.json().catch(function (parseError) {
+              throw new DashboardError(
+                "Project data could not be parsed. Check that " + DATA_URL + " is valid JSON.",
+                parseError
+              );
+            });
+          })
+          .then(function (data) {
+            if (data === null || typeof data !== "object" || !Array.isArray(data.projects)) {
+              throw new DashboardError("Project data is missing a projects list.");
+            }
+            renderProjects(data.projects);
+          })
+          .catch(function (error) {
+            var userMessage = error instanceof DashboardError
+              ? error.message
+              : "Something went wrong while showing projects.";
+            gridElement.textContent = "";
+            showMessage("error", userMessage);
+            console.error("Project Pulse:", userMessage, error.cause || error);
+          });
+      }
+
+      loadProjects();
+    })();
+  </script>
+</body>
+</html>
